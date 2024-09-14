@@ -18,10 +18,7 @@ model = genai.GenerativeModel("gemini-pro")
 def fetch_yfinance_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
-        data = stock.history(period="1d")
-        # Convert the DataFrame to a dictionary and ensure all keys are strings
-        data_dict = data.to_dict()
-        data_dict_str_keys = {str(k): {str(inner_k): inner_v for inner_k, inner_v in v.items()} for k, v in data_dict.items()}
+        data = stock.history(period="1y")  # Fetching 1 year of historical data
         return data
     except Exception as e:
         st.error(f"Error fetching data for {symbol} from Yahoo Finance: {str(e)}")
@@ -43,32 +40,63 @@ def get_gemini_response(symbol):
     return full_text
 
 # Streamlit app setup
-st.set_page_config(page_title="Stock Data Fetcher", layout="wide")
-st.title("Stock Data Fetcher")
+st.set_page_config(page_title="Stock Data Dashboard", layout="wide")
+st.title("Stock Data Dashboard")
 
 # Streamlit inputs
-symbol = st.text_input("Enter Stock Symbol")
+symbols = st.multiselect("Select Stock Symbols", ["RELIANCE.BO", "TCS.BO", "HDFCBANK.BO", "INFY.BO", "ICICIBANK.BO", 
+    "HINDUNILVR.BO", "BHARTIARTL.BO", "ITC.BO", "KOTAKBANK.BO", "SBI.BO",
+    "LTI.BO", "WIPRO.BO", "HCLTECH.BO", "M&M.BO", "ADANIGREEN.BO", "NTPC.BO",
+    "POWERGRID.BO", "ONGC.BO", "BAJFINANCE.BO", "JSWSTEEL.BO", "HDFC.BO",
+    "M&MFIN.BO", "SBILIFE.BO", "CIPLA.BO", "DRREDDY.BO", "SUNPHARMA.BO", "TSLA"], default=["RELIANCE.BO"])
 
 if st.button("Fetch Data"):
-    if symbol:
-        data = fetch_yfinance_stock_data(symbol)
-        if data is not None and not data.empty:
-            st.subheader(f"Stock Data for {symbol}")
-            
-            # Display raw data
-            st.write(data)
+    if symbols:
+        for symbol in symbols:
+            data = fetch_yfinance_stock_data(symbol)
+            if data is not None and not data.empty:
+                st.subheader(f"Stock Data for {symbol}")
+                
+                # Display raw data
+                st.write("**Displaying last 5 records:**")
+                st.write(data.tail())
+                
+                # Create a column layout for visualizations
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    # Stock Price Chart
+                    st.subheader(f"Stock Price Chart for {symbol}")
+                    fig, ax = plt.subplots(figsize=(4, 3))  # Smaller figure size
+                    data['Close'].plot(ax=ax, title=f"Closing Prices for {symbol}", legend=True)
+                    plt.xlabel("Date")
+                    plt.ylabel("Price (USD)")
+                    st.pyplot(fig)
+                
+                with col2:
+                    # Volume Traded Chart
+                    st.subheader(f"Volume Traded Chart for {symbol}")
+                    fig, ax = plt.subplots(figsize=(4, 3))  # Smaller figure size
+                    data['Volume'].plot(ax=ax, color='orange', title=f"Volume Traded for {symbol}", legend=True)
+                    plt.xlabel("Date")
+                    plt.ylabel("Volume")
+                    st.pyplot(fig)
+                
+                with col3:
+                    # Moving Average Chart
+                    st.subheader(f"Moving Average Chart for {symbol}")
+                    fig, ax = plt.subplots(figsize=(4, 3))  # Smaller figure size
+                    data['Close'].rolling(window=30).mean().plot(ax=ax, color='blue', label='30-Day Moving Average')
+                    data['Close'].plot(ax=ax, title=f"Closing Prices and Moving Average for {symbol}", legend=True)
+                    plt.xlabel("Date")
+                    plt.ylabel("Price (USD)")
+                    st.pyplot(fig)
 
-            # Visualization
-            st.subheader("Stock Price Chart")
-            fig, ax = plt.subplots()
-            data['Close'].plot(ax=ax, title=f"Closing Prices for {symbol}", legend=True)
-            st.pyplot(fig)
-
-            # Fetch and display Gemini response
-            gemini_response = get_gemini_response(symbol)
-            st.subheader("Gemini Response")
-            st.write(gemini_response)
-        else:
-            st.error(f"Failed to fetch data for {symbol}")
+                # Fetch and display Gemini response
+                gemini_response = get_gemini_response(symbol)
+                st.subheader(f"Gemini Response for {symbol}")
+                st.write(gemini_response)
+            else:
+                st.error(f"Failed to fetch data for {symbol}")
     else:
-        st.error("Please enter a stock symbol.")
+        st.error("Please select at least one stock symbol.")

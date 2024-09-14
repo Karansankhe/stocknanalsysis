@@ -3,3 +3,4 @@ yfinance
 python-dotenv
 matplotlib
 google-generativeai
+reportlab
